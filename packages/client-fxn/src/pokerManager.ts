@@ -791,7 +791,7 @@ export class PokerManager {
             const legalActions = this.table.legalActions();
             if (responseData.action && legalActions.actions.includes(responseData.action)) {
                 validAction = true;
-                if (legalActions.chipRange) {
+                if (legalActions.chipRange && responseData.action == "bet" || responseData.action == "raise") {
                     const min = legalActions.chipRange.min;
                     const max = legalActions.chipRange.max;
                     if (responseData.betSize && responseData.betSize >= min && responseData.betSize <= max) {
