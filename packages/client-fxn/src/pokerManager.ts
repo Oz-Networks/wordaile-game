@@ -21,7 +21,8 @@ enum HandRanking {
     FULL_HOUSE = 6,
     FOUR_OF_A_KIND = 7,
     STRAIGHT_FLUSH = 8,
-    ROYAL_FLUSH = 9
+    ROYAL_FLUSH = 9,
+    UNKNOWN = 10
 }
 
 const HandRankingStr = [
@@ -34,7 +35,8 @@ const HandRankingStr = [
     "Full House",
     "Four of a Kind",
     "Straight Flush",
-    "Royal Flush"
+    "Royal Flush",
+    "Really good hand"
 ];
 
 export interface ActionHistoryEntry {
@@ -486,7 +488,7 @@ export class PokerManager {
         this.playerStates[seatIndex].legalActions = null;
 
         // Log the action to the console
-        console.log("Player: " + name + " Action: " + action + " Bet: " + betSize);
+        console.log("ACTION TAKEN - Player: " + name + " Action: " + action + " Bet: " + betSize);
 
         // process the action in the internal table
         this.table.actionTaken(action, betSize);
@@ -529,13 +531,10 @@ export class PokerManager {
                 // Parse their chosen action
                 const responseData = await response.json();
 
-                if (this.validateResponseData(responseData)) {
-                    action = responseData.action;
-                    betSize = responseData.betSize;
-                } else {
-                    console.log(`Invalid response data from ${recipient}. Auto-folding.`);
-                    console.log(responseData);
-                }
+                // Validate their response, if invalid this will return {action: "fold", betSize: 0}
+                const validatedResponseData = this.validateResponseData(responseData);
+                action = validatedResponseData.action;
+                betSize = validatedResponseData.betSize;
             }
         }).catch((error) => {
             console.log(`Error fetching action from ${recipient}. Auto-folding.`, error);
@@ -790,28 +789,59 @@ export class PokerManager {
 
     private getHandRanking(cards: Card[]): HandRanking {
         // TODO: calculate the hand ranking based on hole + community
-        return HandRanking.HIGH_CARD;
+        return HandRanking.UNKNOWN;
     }
 
-    private validateResponseData(responseData: any): boolean {
-        let validAction = false;
-        let validBetSize = false;
-        if (responseData) {
-            const legalActions = this.table.legalActions();
-            if (responseData.action && legalActions.actions.includes(responseData.action)) {
-                validAction = true;
-                if (legalActions.chipRange && responseData.action == "bet" || responseData.action == "raise") {
-                    const min = legalActions.chipRange.min;
-                    const max = legalActions.chipRange.max;
-                    if (responseData.betSize && responseData.betSize >= min && responseData.betSize <= max) {
-                        validBetSize = true;
-                    }
-                } else {
-                    validBetSize = true;
-                }
+    private validateResponseData(responseData: any): {action: any, betSize: any} {
+        // Fold by default
+        let validatedAction = "fold";
+        let validatedBetSize = 0;
+
+        if (!responseData || !("action" in responseData) || !("betSize" in responseData)) {
+            console.log(`VALIDATION ERROR - Response undefined or missing members. Folding.`);
+            console.log(responseData);
+            return {action: validatedAction, betSize: validatedBetSize};
+        }
+
+        const legalActions = this.table.legalActions();
+        const actions = legalActions.actions;
+        const chipRange = legalActions.chipRange;
+
+        // Validate action
+        if (responseData.action == "call" || responseData.action == "check") {
+            if (!actions.includes("call") && actions.includes("check")) {
+                console.log("VALIDATION WARNING - Response used call instead of check. Swapping.");
+                validatedAction = "check";
+            } else if (!actions.includes("check") && actions.includes("call")) {
+                console.log("VALIDATION WARNING - Response used check instead of call. Swapping.");
+                validatedAction = "call";
+            }
+        } else if (responseData.action == "bet" || responseData.action == "raise") {
+            if (!actions.includes("bet") && actions.includes("raise")) {
+                console.log("VALIDATION WARNING - Response used bet instead of raise. Swapping.");
+                validatedAction = "raise";
+            } else if (!actions.includes("raise") && actions.includes("bet")) {
+                console.log("VALIDATION WARNING - Response used raise instead of bet. Swapping.");
+                validatedAction = "bet";
+            }
+        } else {
+            if (responseData.action != "fold") {
+                console.log(`VALIDATION ERROR - Response action: ${responseData.action} is invalid. Folding.`);
             }
         }
-        
-        return validAction && validBetSize;
+
+        // Validate bet size
+        if (validatedAction == "bet" || validatedAction == "raise") {
+            if (responseData.betSize < chipRange.min) {
+                console.log(`VALIDATION WARNING - Response bet of ${responseData.betSize} is less than ${chipRange.min}. Increasing.`);
+                validatedBetSize = chipRange.min;
+            } else if (responseData.betSize > chipRange.max) {
+                console.log(`VALIDATION WARNING - Response bet of ${responseData.betSize} is more than ${chipRange.max}. Decreasing.`);
+                validatedBetSize = chipRange.max;
+            } else {
+                validatedBetSize = responseData.betSize;
+            }
+        }
+        return {action: validatedAction, betSize: validatedBetSize};
     }
 }
