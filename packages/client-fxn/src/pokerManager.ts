@@ -80,6 +80,7 @@ export interface TableState {
     playerToActName: string, // The name of the player to act
     playerToActSeat: number,
     pots: Array<number>, // The size of each pot
+    biggestBet: number;
     communityCards: Array<Card>,
     gameStateString: GameStateString,
 
@@ -155,6 +156,7 @@ export class PokerManager {
             bigBlindSeat: -1,
             smallBlindSeat: -1,
             pots: new Array<number>(),
+            biggestBet: -1,
             communityCards: new Array<Card>(),
             gameStateString: "prehand",
             winners: new Array<Winner>()
@@ -266,6 +268,7 @@ export class PokerManager {
         this.tableState.numSeats = this.table.numSeats();
         this.tableState.forcedBets = this.table.forcedBets();
         this.tableState.pots = [0];
+        this.tableState.biggestBet = -1;
         this.tableState.communityCards = [];
         this.tableState.winners = [];
 
@@ -321,6 +324,8 @@ export class PokerManager {
 
         // Update pots
         this.updatePots();
+        // Biggest bet is the big blind at this point
+        this.tableState.biggestBet = this.tableState.forcedBets.bigBlind;
 
         if (log) {
             console.log("Table state after initial deal:");
@@ -469,6 +474,10 @@ export class PokerManager {
         // Add their action to the actionHistory
         const name = this.playerStates[seatIndex].name;
         this.actionHistory.push({roundOfBetting, name, action, betSize});
+
+        // If this was a bet or raise, update the table biggest bet
+        if (action == "bet" || action == "raise")
+            this.tableState.biggestBet = Math.max(this.tableState.biggestBet, betSize);
         
         // Update the player's isFolded
         this.playerStates[seatIndex].isFolded = action == "fold";
