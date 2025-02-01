@@ -189,9 +189,6 @@ export class FxnClientInterface {
             return actionStrings.join(", ");
         }
 
-        // Sum all the pots this player is eligible for
-        const totalEligiblePotSize = tableState.pots.reduce((acc, cur) => {return acc + cur}, 0);
-
         const legalActions = playerState.legalActions;
         
         return `
@@ -203,23 +200,25 @@ export class FxnClientInterface {
             Your current properties are:
             - Chips: ${playerState.stack}
             - Hand: [${formatCards(playerState.holeCards)}]
+            - Current Bet: ${playerState.currentBet}
 
-            Take into account the community cards to make your decision.
+            Take into account the table's community cards and biggest bet to make your decision.
             - Community Cards: [${tableState.communityCards}]
+            - Biggest Bet: ${tableState.biggestBet}
 
             Review the action history and opponent behavior to inform your decision:
             - Action History: [${formatActionHistory(actionHistory)}]
 
-            If there is no entries in the Action History, you are the first player to act in this round,
+            If there are no entries in the Action History, you are the first player to act in this round,
 
             The basic strategy behind each type of action is as follows:
             - Fold: If your hand is weak and opponents show strength. Does not require a bet size.
             - Call: If the bet value is reasonable and your hand has potential. Does not require a bet size.
             - Raise: If your hand is strong and you want to increase the pot size or bluff. Requires a bet size.
-            - Bet: The same as Raise, but is only available if you have not Bet yet this hand. Requires a bet size.
+            - Bet: The same as raise, but is only available if your current bet is also the biggest bet. Requires a bet size.
             - Check: If no bet is required and you want to see the next card for free. Does not require a bet size.
 
-            Based on this information, decide your next move. You may choose one of the following legal actions: [${legalActions.actions.join(", ")}]
+            Based on this information, decide on a legal action. Legal actions available for you to choose from are: [${legalActions.actions.join(", ")}]. Your chosen action must be in this list to be considered legal.
             ${legalActions.chipRange ? `If you choose an action that requires a bet size, it must be a minimum of ${legalActions.chipRange?.min}  dollars and a maximum of ${legalActions.chipRange?.max} dollars.` : ``}
 
             Make a decision now.
