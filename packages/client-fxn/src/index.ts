@@ -213,20 +213,19 @@ export class FxnClientInterface {
 
             The basic strategy behind each type of action is as follows:
             - Fold: If your hand is weak and opponents show strength. Does not require a bet size.
-            - Call: If the bet value is reasonable and your hand has potential. Does not require a bet size.
-            - Raise: If your hand is strong and you want to increase the pot size or bluff. Requires a bet size.
-            - Bet: The same as raise, but is only available if your current bet is also the biggest bet. Requires a bet size.
-            - Check: If no bet is required and you want to see the next card for free. Does not require a bet size.
+            - Call: If your current bet is less than the biggest bet, but the biggest bet value is reasonable and your hand has potential. Does not require a bet size.
+            - Check: If your current bet is equal to the biggest bet, and you want to see the next card for free. Does not require a bet size.
+            - Raise: If your current bet is less than the biggest bet, but your hand is strong and you want to increase the pot size or bluff. Requires a bet size.
+            - Bet: If your current bet is equal to the biggest bet, but your hand is strong and you want to increase the pot size or bluff. Requires a bet size.
 
-            Based on this information, decide on a legal action. Legal actions available for you to choose from are: [${legalActions.actions.join(", ")}]. Your chosen action must be in this list to be considered legal.
-            ${legalActions.chipRange ? `If you choose an action that requires a bet size, it must be a minimum of ${legalActions.chipRange?.min}  dollars and a maximum of ${legalActions.chipRange?.max} dollars.` : ``}
-
-            Make a decision now.
+            Based on this information, decide on a legal action from the following list:
+            - Legal Actions: [${legalActions.actions.join(", ")}]
+            ${legalActions.chipRange ? `If you choose a legal action that requires a bet size, it must be a minimum of ${legalActions.chipRange?.min} dollars and a maximum of ${legalActions.chipRange?.max} dollars.` : ``}
 
             Format Instructions:
             Do not include any preamble, only provide a RFC8259 compliant JSON response following this schema:
             {
-                action: string // Your chosen action. Possible values: ${legalActions.actions.join(", ")}
+                action: string // Your chosen legal action. Must be one of the following words: ${legalActions.actions.join(", ")}
                 betSize: number // The bet size you have chosen, should be 0 if your chosen action does not require a bet size
                 explanation: string // A brief explanation for your choice
             }
