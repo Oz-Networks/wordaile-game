@@ -84,8 +84,8 @@ export class FxnClientInterface {
                     });
                 }
 
-                // If this is just a ping or update, respond with 200
-                if (payload.type == BroadcastType.Ping || payload.type == BroadcastType.Update) {
+                // If this is just a ping, respond with 200
+                if (payload.type == BroadcastType.Ping) {
                     return res.send("Got ping");
                 }
 
@@ -96,35 +96,31 @@ export class FxnClientInterface {
                 const playerState: PlayerState = pokerPayload.playerState;
                 const actionHistory: ActionHistory = pokerPayload.actionHistory;
 
-                if (tableState.playerToActKey == this.runtime.getSetting("WALLET_PUBLIC_KEY")) {
-                    // It is this player's turn
-                    const legalActions = tableState.playerToActLegalActions;
-                    console.log("Legal Actions:", legalActions.actions);
+                // Get legal actions
+                const legalActions = playerState.legalActions;
+                console.log("Legal Actions:", legalActions.actions);
+                if (legalActions.chipRange)
                     console.log(`Bet Range: ${legalActions.chipRange?.min} -> ${legalActions.chipRange?.max}\n`);
 
-                    // Determine an action to take and a bet size if applicable
-                    const prompt = this.generatePokerPrompt(tableState, playerState, actionHistory);
-                    const rawOutput = await generateText({
-                        runtime: this.runtime,
-                        context: prompt,
-                        modelClass: ModelClass.SMALL,
-                        stop: null
-                    });
+                // Determine an action to take and a bet size if applicable
+                const prompt = this.generatePokerPrompt(tableState, playerState, actionHistory);
+                const rawOutput = await generateText({
+                    runtime: this.runtime,
+                    context: prompt,
+                    modelClass: ModelClass.SMALL,
+                    stop: null
+                });
 
-                    const parsedOutput = JSON.parse(rawOutput);
-                    console.log("Parsed action:", parsedOutput.action);
-                    console.log("Parsed betSize:", parsedOutput.betSize);
-                    console.log(`Explanation:\n${parsedOutput.explanation}\n`);
+                const parsedOutput = JSON.parse(rawOutput);
+                console.log("Parsed action:", parsedOutput.action);
+                console.log("Parsed betSize:", parsedOutput.betSize);
+                console.log(`Explanation:\n${parsedOutput.explanation}\n`);
 
-                    // Include it in the response
-                    return res.json({
-                        action: parsedOutput.action,
-                        betSize: parsedOutput.betSize
-                    });
-                } else {
-                    // Return success
-                    return res.sendStatus(200);
-                }
+                // Include it in the response
+                return res.json({
+                    action: parsedOutput.action,
+                    betSize: parsedOutput.betSize
+                });
 
             } catch (error) {
                 console.error('Error processing request:', error);
@@ -196,7 +192,7 @@ export class FxnClientInterface {
         // Sum all the pots this player is eligible for
         const totalEligiblePotSize = tableState.pots.reduce((acc, cur) => {return acc + cur}, 0);
 
-        const legalActions = tableState.playerToActLegalActions;
+        const legalActions = playerState.legalActions;
         
         return `
             Your name is ${playerState.name}, and you are a poker agent playing Texas Hold'em.
@@ -208,9 +204,8 @@ export class FxnClientInterface {
             - Chips: ${playerState.stack}
             - Hand: [${formatCards(playerState.holeCards)}]
 
-            Take into account the community cards and the current pot size to make your decision.
+            Take into account the community cards to make your decision.
             - Community Cards: [${tableState.communityCards}]
-            - Current Pot Size: ${totalEligiblePotSize}
 
             Review the action history and opponent behavior to inform your decision:
             - Action History: [${formatActionHistory(actionHistory)}]
@@ -225,7 +220,7 @@ export class FxnClientInterface {
             - Check: If no bet is required and you want to see the next card for free. Does not require a bet size.
 
             Based on this information, decide your next move. You may choose one of the following legal actions: [${legalActions.actions.join(", ")}]
-            ${legalActions.chipRange ? `If you choose an action that requires a bet size, it must be a minimum of ${legalActions.chipRange.min}  dollars and a maximum of ${legalActions.chipRange.max} dollars.` : ``}
+            ${legalActions.chipRange ? `If you choose an action that requires a bet size, it must be a minimum of ${legalActions.chipRange?.min}  dollars and a maximum of ${legalActions.chipRange?.max} dollars.` : ``}
 
             Make a decision now.
 
